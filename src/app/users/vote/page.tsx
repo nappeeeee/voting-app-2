@@ -9,8 +9,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import Cookies from "js-cookie";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Candidate {
   id: string;
@@ -28,11 +27,13 @@ export default function VotePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [showPopup, setShowPopup] = useState(false);
+
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("id");
 
   useEffect(() => {
     const fetchUserAndCandidates = async () => {
-      const userId = Cookies.get("userSession");
       if (!userId) {
         router.push("/users/login");
         return;
@@ -50,7 +51,7 @@ export default function VotePage() {
       setUsername(userData.username || "User");
 
       if (userData.hasVoted === true) {
-        router.push("/users/thanks");
+        router.push(`/users/thanks?id=${userId}`);
         return;
       }
 
@@ -65,7 +66,7 @@ export default function VotePage() {
     };
 
     fetchUserAndCandidates();
-  }, []);
+  }, [userId]);
 
   const handleSelect = (id: string) => {
     setError("");
@@ -81,7 +82,6 @@ export default function VotePage() {
   };
 
   const handleLogout = () => {
-    Cookies.remove("userSession");
     router.push("/users/login");
   };
 
@@ -92,9 +92,8 @@ export default function VotePage() {
       return;
     }
 
-    const userId = Cookies.get("userSession");
     if (!userId) {
-      setError("Sesi pengguna tidak ditemukan. Silakan login ulang.");
+      setError("ID pengguna tidak ditemukan. Silakan login ulang.");
       router.push("/users/login");
       return;
     }
@@ -106,7 +105,7 @@ export default function VotePage() {
         hasVoted: true,
         votes: selectedIds,
       });
-      router.push("/users/thanks");
+      router.push(`/users/thanks?id=${userId}`);
     } catch (err) {
       console.error("Gagal menyimpan suara:", err);
       setError("Terjadi kesalahan saat menyimpan suara. Mohon coba lagi.");
