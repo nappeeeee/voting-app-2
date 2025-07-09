@@ -1,57 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { db } from "../../../../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { FaUser, FaLock } from "react-icons/fa"; // <- Icon tambahan
+import { FaUser, FaLock } from "react-icons/fa";
 
 export default function UserLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirectPath, ] = useState("");
   const router = useRouter();
 
+  useEffect(() => {
+    // Eksekusi redirect hanya saat redirectPath berubah
+    if (redirectPath) {
+      router.push(redirectPath);
+    }
+  }, [redirectPath, router]);
+
   const handleLogin = async () => {
-    setError("");
-    setLoading(true);
-    if (!username || !password) {
-      setError("Username dan password wajib diisi.");
+  setError("");
+  setLoading(true);
+  if (!username || !password) {
+    setError("Username dan password wajib diisi.");
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const q = query(
+      collection(db, "users"),
+      where("username", "==", username),
+      where("password", "==", password)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      setError("Akun tidak ditemukan atau password salah.");
       setLoading(false);
       return;
     }
 
-    try {
-      const q = query(
-        collection(db, "users"),
-        where("username", "==", username),
-        where("password", "==", password)
-      );
-      const snapshot = await getDocs(q);
+    const user = snapshot.docs[0];
+    const data = user.data();
 
-      if (snapshot.empty) {
-        setError("Akun tidak ditemukan atau password salah. Silakan coba lagi.");
-        setLoading(false);
-        return;
-      }
+    // ✅ Simpan session dulu baru redirect
+    sessionStorage.setItem("userSession", user.id);
+    console.log("Session disimpan:", sessionStorage.getItem("userSession"));
 
-      const user = snapshot.docs[0];
-      const data = user.data();
-
-      if (data.hasVoted) {
-        router.push("/users/thanks");
-      } else {
-        document.cookie = `userSession=${user.id}; path=/`;
-        router.push("/users/vote");
-      }
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Terjadi kesalahan saat login. Mohon coba beberapa saat lagi.");
-    } finally {
-      setLoading(false);
+    if (data.hasVoted) {
+      router.replace("/users/thanks");
+    } else {
+      router.replace("/users/vote");
     }
-  };
+  } catch (err) {
+    console.error("Login error:", err);
+    setError("Terjadi kesalahan saat login. Mohon coba lagi.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center px-4">
@@ -72,7 +84,7 @@ export default function UserLoginPage() {
           <label htmlFor="username" className="block text-gray-700 text-sm font-medium mb-2">
             Username
           </label>
-          <div className="flex items-center border border-gray-300 rounded-lg px-4 py-2 focus-within:ring-2 focus-within:ring-blue-500 transition-all bg-white">
+          <div className="flex items-center border border-gray-300 rounded-lg px-4 py-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
             <FaUser className="text-gray-400 mr-2" />
             <input
               type="text"
@@ -81,7 +93,7 @@ export default function UserLoginPage() {
               className="w-full focus:outline-none text-gray-800 placeholder-gray-400"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             />
           </div>
         </div>
@@ -91,7 +103,7 @@ export default function UserLoginPage() {
           <label htmlFor="password" className="block text-gray-700 text-sm font-medium mb-2">
             Password
           </label>
-          <div className="flex items-center border border-gray-300 rounded-lg px-4 py-2 focus-within:ring-2 focus-within:ring-blue-500 transition-all bg-white">
+          <div className="flex items-center border border-gray-300 rounded-lg px-4 py-2 bg-white focus-within:ring-2 focus-within:ring-blue-500">
             <FaLock className="text-gray-400 mr-2" />
             <input
               type="password"
@@ -100,16 +112,15 @@ export default function UserLoginPage() {
               className="w-full focus:outline-none text-gray-800 placeholder-gray-400"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             />
           </div>
         </div>
 
-        {/* Button */}
         <button
           onClick={handleLogin}
           disabled={loading}
-          className={`w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg ${
+          className={`w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg ${
             loading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
