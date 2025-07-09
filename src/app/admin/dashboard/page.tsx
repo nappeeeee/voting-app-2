@@ -17,39 +17,42 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const fetchVotingResults = async () => {
-    const candidateSnap = await getDocs(collection(db, "candidates"));
-    const userSnap = await getDocs(collection(db, "users"));
+  const candidateSnap = await getDocs(collection(db, "candidates"));
+  const userSnap = await getDocs(collection(db, "users"));
 
-    const voteMap: Record<string, number> = {};
+  const voteMap: Record<string, number> = {};
 
-    const candidates = candidateSnap.docs.map((doc) => {
-      voteMap[doc.id] = 0;
-      return {
-        id: doc.id,
-        name: doc.data().name,
-        imageUrl: doc.data().imageUrl,
-        votes: 0,
-      };
+  const candidates = candidateSnap.docs.map((doc) => {
+    voteMap[doc.id] = 0;
+    return {
+      id: doc.id,
+      name: doc.data().name,
+      imageUrl: doc.data().imageUrl,
+      votes: 0,
+    };
+  });
+
+  userSnap.docs.forEach((doc) => {
+    const userData = doc.data();
+    const votes: string[] = userData.votes || [];
+    votes.forEach((voteId) => {
+      if (voteMap[voteId] !== undefined) {
+        voteMap[voteId] += 1;
+      }
     });
+  });
 
-    userSnap.docs.forEach((doc) => {
-      const userData = doc.data();
-      const votes: string[] = userData.votes || [];
-      votes.forEach((voteId) => {
-        if (voteMap[voteId] !== undefined) {
-          voteMap[voteId] += 1;
-        }
-      });
-    });
-
-    const finalData = candidates.map((c) => ({
+  const finalData = candidates
+    .map((c) => ({
       ...c,
       votes: voteMap[c.id] || 0,
-    }));
+    }))
+    .sort((a, b) => b.votes - a.votes); // Sort descending
 
-    setData(finalData);
-    setLoading(false);
-  };
+  setData(finalData);
+  setLoading(false);
+};
+
 
   useEffect(() => {
     fetchVotingResults();
