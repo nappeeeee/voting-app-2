@@ -9,7 +9,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Candidate {
   id: string;
@@ -28,10 +28,11 @@ export default function VotePage() {
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("userId");
 
   useEffect(() => {
     const fetchUserAndCandidates = async () => {
-      const userId = sessionStorage.getItem("userSession");
       if (!userId) {
         router.push("/users/login");
         return;
@@ -64,7 +65,7 @@ export default function VotePage() {
     };
 
     fetchUserAndCandidates();
-  }, []);
+  }, [userId, router]);
 
   const handleSelect = (id: string) => {
     setError("");
@@ -80,13 +81,11 @@ export default function VotePage() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("userSession");
     router.push("/users/login");
   };
 
   const handleSubmit = async () => {
     setError("");
-    const userId = sessionStorage.getItem("userSession");
 
     if (!userId) {
       setError("ID pengguna tidak ditemukan. Silakan login ulang.");
@@ -106,7 +105,7 @@ export default function VotePage() {
         hasVoted: true,
         votes: selectedIds,
       });
-      router.push("/users/thanks");
+      router.push(`/users/thanks?userId=${userId}`);
     } catch (err) {
       console.error("Gagal menyimpan suara:", err);
       setError("Terjadi kesalahan saat menyimpan suara. Mohon coba lagi.");
@@ -136,7 +135,6 @@ export default function VotePage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8 sm:p-12">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
           <h2 className="text-2xl sm:text-3xl font-semibold text-gray-300 text-center sm:text-left flex items-center gap-2">
             👋 Hai, <span className="text-blue-400">{username}</span>!
@@ -160,7 +158,6 @@ export default function VotePage() {
           </div>
         )}
 
-        {/* Kandidat Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-10">
           {candidates.map((cand) => (
             <div
@@ -203,7 +200,6 @@ export default function VotePage() {
           ))}
         </div>
 
-        {/* Tombol Submit */}
         <div className="flex justify-center">
           <button
             onClick={handleSubmit}
@@ -219,7 +215,6 @@ export default function VotePage() {
         </div>
       </div>
 
-      {/* Popup View */}
       {showPopup && selectedCandidate && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
           <div className="bg-white text-black rounded-lg max-w-md w-full p-6 relative shadow-xl">

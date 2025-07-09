@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { db } from "../../../../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -11,59 +11,56 @@ export default function UserLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [redirectPath, ] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
-    // Eksekusi redirect hanya saat redirectPath berubah
-    if (redirectPath) {
-      router.push(redirectPath);
-    }
-  }, [redirectPath, router]);
-
   const handleLogin = async () => {
-  setError("");
-  setLoading(true);
-  if (!username || !password) {
-    setError("Username dan password wajib diisi.");
-    setLoading(false);
-    return;
-  }
+    setError("");
+    setLoading(true);
 
-  try {
-    const q = query(
-      collection(db, "users"),
-      where("username", "==", username),
-      where("password", "==", password)
-    );
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      setError("Akun tidak ditemukan atau password salah.");
+    if (!username || !password) {
+      setError("Username dan password wajib diisi.");
       setLoading(false);
       return;
     }
 
-    const user = snapshot.docs[0];
-    const data = user.data();
+    try {
+      console.log("Memulai query ke Firestore...");
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", username),
+        where("password", "==", password)
+      );
+      const snapshot = await getDocs(q);
+      console.log("Hasil query:", snapshot.docs);
 
-    // ✅ Simpan session dulu baru redirect
-    sessionStorage.setItem("userSession", user.id);
-    console.log("Session disimpan:", sessionStorage.getItem("userSession"));
+      if (snapshot.empty) {
+        console.log("Snapshot kosong");
+        setError("Akun tidak ditemukan atau password salah.");
+        setLoading(false);
+        return;
+      }
 
-    if (data.hasVoted) {
-      router.replace("/users/thanks");
-    } else {
-      router.replace("/users/vote");
+      const userDoc = snapshot.docs[0];
+      const userId = userDoc.id;
+      const data = userDoc.data();
+
+      console.log("User ID:", userId);
+      console.log("User data:", data);
+
+      if (data.hasVoted) {
+        console.log("Sudah voting, redirect ke /thanks");
+        router.push(`/users/thanks?userId=${userId}`);
+      } else {
+        console.log("Belum voting, redirect ke /vote");
+        router.push(`/users/vote?userId=${userId}`);
+      }
+    } catch (error) {
+      console.error("Error saat login:", error);
+      setError("Terjadi kesalahan saat login.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Login error:", err);
-    setError("Terjadi kesalahan saat login. Mohon coba lagi.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center px-4">
